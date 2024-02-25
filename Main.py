@@ -347,7 +347,7 @@ def convert_rows_to_wiki_table(rows, file_name_without_extension):
     Converts processed rows into a wiki table string with the new specified format.
     """
     # Standard header text
-    header_text = "{{clear}}\n==Distribution==\nThe loot distributions can be found in the table(s) below.\n\n"
+    header_text = "==Distribution==\nThe loot distributions can be found in the table(s) below.\n\n"
 
     # Start of the collapsible wiki table with custom attributes
     wiki_table = ('{| class="mw-collapsible mw-collapsed wikitable theme-red" data-expandtext="{{int:show}}" '
