@@ -344,27 +344,26 @@ def process_rows_for_wiki_format(rows):
 
 def convert_rows_to_wiki_table(rows, file_name_without_extension):
     """
-    Converts processed rows into a wiki table string with the new specified format.
+    Converts processed rows into a wiki table string with the new specified format, ensuring consistent spacing.
     """
     # Standard header text
     header_text = "==Distribution==\nThe loot distributions can be found in the table(s) below.\n\n"
 
-    # Start of the collapsible wiki table with custom attributes
+    # Start of the collapsible wiki table with custom attributes and consistent spacing
     wiki_table = ('{| class="mw-collapsible mw-collapsed wikitable theme-red" data-expandtext="{{int:show}}" '
                   'data-collapsetext="{{int:hide}}" style="text-align:center; min-width:24em;"\n'
                   '! colspan="4" | Containers\n|-\n'
-                  '!Building/Room\n!Container\n! style="width: 3.2em;" |Rolls\n! style="width: 3.2em;" |Chance')
+                  '! Building/Room\n! Container\n! style="width: 3.2em;" | Rolls\n! style="width: 3.2em;" | Chance')
 
-    # Adding rows to the table
     for row in rows:
         filtered_row = [item for item in row if item.strip()]  # Remove any empty strings from row
         if not filtered_row:  # If the row is empty after filtering, skip it
             continue
         wiki_table += '\n|-'
-        if len(filtered_row) == 4:  # Normal row
-            wiki_table += f'\n| {filtered_row[0]} \n| {filtered_row[1]} \n| {filtered_row[2]} \n| {filtered_row[3]}'
-        else:  # Adjusted for rows with rowspan or without a Building/Room due to duplication
-            wiki_table += '\n|' + '\n|'.join(filtered_row)
+        if len(filtered_row) == 4:
+            wiki_table += f'\n|{filtered_row[0]} \n|{filtered_row[1]} \n|{filtered_row[2]} \n|{filtered_row[3]}'
+        else:
+            wiki_table += '\n|' + ' \n|'.join(filtered_row)
 
     # Closing table tag
     wiki_table += '\n|}'
@@ -412,8 +411,3 @@ if __name__ == "__main__":
     process_csv_files(input_dir, cleaned_lua_file_path, output_dir)
     sort_all_csv_files_in_folder(folder_path)
     convert_csv_to_wiki_table(csv_folder, output_folder)
-
-
-
-
-#    header_text = "{{clear}}\n==Distribution==\nThe loot distributions can be found in the table(s) below.\n\n"
