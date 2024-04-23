@@ -450,11 +450,17 @@ def formatting(unique_items, base_output_path):
         output_data += "    <div class=\"toggle-content\"><div style=\"display: flex;\">"
 
         item_files = {file_type: None for file_type in ['container', 'vehicle', 'foraging1', 'foraging2']}
+        has_relevant_files = False  # Initialize the flag to check for relevant files
+
         # Search for files that include the item name
         for filename in os.listdir(csv_output_path):
             for file_type in item_files.keys():
                 if filename.startswith(item + '_') and filename.endswith(f'{file_type}.csv'):
                     item_files[file_type] = os.path.join(csv_output_path, filename)
+                    has_relevant_files = True  # Set flag to True if any relevant file is found
+
+        if not has_relevant_files:  # If no relevant files are found, skip to the next item
+            continue
 
         # Process container and vehicle files
         for file_type in ['container', 'vehicle']:
@@ -462,7 +468,6 @@ def formatting(unique_items, base_output_path):
                 rows_to_add = []
                 with open(item_files[file_type], mode='r', newline='') as csvfile:
                     reader = csv.reader(csvfile)
-                    header = next(reader)  # Skip the header row
 
                     for row in reader:
                         if file_type == 'container':
