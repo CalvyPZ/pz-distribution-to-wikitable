@@ -442,7 +442,7 @@ def formatting(unique_items, base_output_path):
 
     # Process each unique item with a progress bar
     for item in tqdm(unique_items, desc="Formatting items"):
-        output_data = f"<!--BOT FLAG|{item}|{version}-->\n"
+        output_data = f"<!--BOT FLAG|{item}|{version}-->\n{{{{clear}}}}\n"
         output_data += "<div class=\"togglebox theme-red\">\n"
         output_data += f"    <div>{item} distribution\n"
         output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float:right; padding-right:30px; padding-top:4px; font-size:0.7em; font-weight:normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
