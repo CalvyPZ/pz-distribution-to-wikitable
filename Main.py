@@ -443,9 +443,8 @@ def formatting(unique_items, base_output_path):
     # Process each unique item with a progress bar
     for item in tqdm(unique_items, desc="Formatting items"):
         output_data = f"<!--BOT FLAG|{item}|{version}-->\n"
-        output_data += f"''{item}''\n"
         output_data += "<div class=\"togglebox theme-red\">\n"
-        output_data += "    <div>Distribution\n"
+        output_data += f"    <div>{item} distribution\n"
         output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float:right; padding-right:30px; padding-top:4px; font-size:0.7em; font-weight:normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
         output_data += f"    <div class=\"mw-collapsible mw-collapsed\" id=\"mw-customcollapsible-togglebox-{item}\">\n"
         output_data += "    <div class=\"toggle-content\"><div style=\"display: flex;\">"
@@ -483,7 +482,7 @@ def formatting(unique_items, base_output_path):
 
                 if rows_to_add:
                     table_caption = "{{ll|Containers}}" if file_type == 'container' else "{{ll|Vehicles}}"
-                    table_div = "<div style=\"float:left; width: 50%;\">\n"
+                    table_div = "<div style=\"float:left;\">\n"
                     table_div += f"    {{| class=\"wikitable theme-red\" style=\"margin-right:15px; width:95%;\"\n"
                     table_div += f"    |+ {table_caption}\n"
                     table_div += "    ! " + (
@@ -546,7 +545,7 @@ def formatting(unique_items, base_output_path):
                     output_data += foraging_table
 
         # Append closing divs for the toggle content and box
-        output_data += "    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{int:show}}/{{int:hide}}\"></div></div>\n"
+        output_data += f"    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}}/{{{{int:hide}}}}\"></div></div>\n"
 
         # Add the closing bot flag
         output_data += f"<!--END BOT FLAG|{item}|{version}-->"
