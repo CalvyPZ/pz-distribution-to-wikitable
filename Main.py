@@ -16,7 +16,7 @@ def main():
     # Extract unique items
     unique_items = unique_items_extract(resources_path, file_names, forage_file_name)
     write_unique_names(unique_items, output_path)
-    #item_processing(unique_items, resources_path, csv_output_path, file_names)
+    item_processing(unique_items, resources_path, csv_output_path, file_names)
 
     # Formatting CSVs into specific structured output
     formatting(unique_items, output_path)
