@@ -16,7 +16,7 @@ def main():
     # Extract unique items
     unique_items = unique_items_extract(resources_path, file_names, forage_file_name)
     write_unique_names(unique_items, output_path)
-    item_processing(unique_items, resources_path, csv_output_path, file_names)
+    #item_processing(unique_items, resources_path, csv_output_path, file_names)
 
     # Formatting CSVs into specific structured output
     formatting(unique_items, output_path)
@@ -446,8 +446,8 @@ def formatting(unique_items, base_output_path):
         output_data += f"''{item}''\n"
         output_data += "<div class=\"togglebox theme-red\">\n"
         output_data += "    <div>Distribution\n"
-        output_data += "        <span class=\"mw-customtoggle-togglebox-{{{id|}}}\" title=\"{{int:show}} / {{int:hide}}\" style=\"float:right; padding-right:30px; padding-top:4px; font-size:0.7em; font-weight:normal;\">{{int:show}} / {{int:hide}}</span></div>\n"
-        output_data += "    <div class=\"mw-collapsible {{#ifeq:{{lc:{{{collapsed|true}}}}}|true|mw-collapsed|}}\" id=\"mw-customcollapsible-togglebox-{{{id|}}}\">\n"
+        output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float:right; padding-right:30px; padding-top:4px; font-size:0.7em; font-weight:normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
+        output_data += f"    <div class=\"mw-collapsible mw-collapsed\" id=\"mw-customcollapsible-togglebox-{item}\">\n"
         output_data += "    <div class=\"toggle-content\"><div style=\"display: flex;\">"
 
         item_files = {file_type: None for file_type in ['container', 'vehicle', 'foraging1', 'foraging2']}
@@ -546,7 +546,7 @@ def formatting(unique_items, base_output_path):
                     output_data += foraging_table
 
         # Append closing divs for the toggle content and box
-        output_data += "    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{{{id|}}}\" title=\"{{int:show}}/{{int:hide}}\"></div></div>\n"
+        output_data += "    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{int:show}}/{{int:hide}}\"></div></div>\n"
 
         # Add the closing bot flag
         output_data += f"<!--END BOT FLAG|{item}|{version}-->"
