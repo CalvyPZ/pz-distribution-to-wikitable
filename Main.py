@@ -526,7 +526,7 @@ def formatting(unique_items, base_output_path):
                     table_div += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
                     table_div += f"    |+ {table_caption}\n"
                     table_div += "    ! " + (
-                        "Building / Room\n    ! Container\n    ! Rolls\n    ! Chance\n" if file_type == 'container' else "Vehicle Type/Location\n    ! Rolls\n    ! Chance\n")
+                        "Building/Room\n    ! Container\n    ! Rolls\n    ! Chance\n" if file_type == 'container' else "Vehicle type/Location\n    ! Rolls\n    ! Chance\n")
                     table_div += ''.join(rows_to_add) + "    |}\n</div>\n"
                     output_data += table_div
 
