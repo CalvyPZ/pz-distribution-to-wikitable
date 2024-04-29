@@ -94,9 +94,6 @@ def item_processing(unique_items, resources_path, output_path, file_names):
         item_processing_foraging(item, resources_path, output_path)
 
 
-import os
-import re
-
 def item_processing_container(item, resources_path):
     procedural_data = os.path.join(resources_path, 'proceduraldistributions.lua')
     distribution_data = os.path.join(resources_path, 'distributions.lua')
@@ -233,16 +230,20 @@ def process_distribution_items(item, resources_path, processed_entries):
 
 
 def write_container_csv(item, output_path, processed_entries):
-    # Only proceed if there are entries to write
     if processed_entries:
         csv_file_path = os.path.join(output_path, f'{item}_container.csv')
         os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
-        sorted_entries = sorted(processed_entries, key=lambda x: (x[0], x[1]))
-
         with open(csv_file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            for entry in sorted_entries:
-                writer.writerow(entry)
+            for entry in sorted(processed_entries):
+                entry_list = list(entry)
+                rolls = float(entry_list[2])
+                chance = float(entry_list[3])
+                effective_chance = (1 + ((100 * chance * 0.6) + (10 * 4))) / 10000
+                final_chance = round((1 - (1 - effective_chance) ** rolls) * 100, 2)
+                entry_list.append(final_chance)
+                # Write the modified list back to the CSV
+                writer.writerow(entry_list)
 
 
 def item_processing_vehicle(item, resources_path, output_path):
@@ -278,7 +279,15 @@ def item_processing_vehicle(item, resources_path, output_path):
         with open(csv_file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             for entry in sorted(vehicle_entries):
-                writer.writerow(entry)
+                # Convert tuple entry to a list to modify it
+                entry_list = list(entry)
+                rolls = float(entry_list[1])
+                chance = float(entry_list[2])
+                effective_chance = (1 + ((100 * chance * 0.6) + (10 * 4))) / 10000
+                final_chance = round((1 - (1 - effective_chance) ** rolls) * 100, 2)
+                entry_list.append(final_chance)
+                # Write the modified list back to the CSV
+                writer.writerow(entry_list)
 
 
 def clean_foraging_file(resources_path):
@@ -481,8 +490,9 @@ def formatting(unique_items, base_output_path):
         output_data += "<div class=\"togglebox theme-red\">\n"
         output_data += f"    <div>{item} distribution\n"
         output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float: right; padding-right: 30px; padding-top: 4px; font-size: 0.7em; font-weight: normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
-        output_data += f"    <div class=\"mw-collapsible mw-collapsed\" id=\"mw-customcollapsible-togglebox-{item}\">\n"
-        output_data += "    <div class=\"toggle-content\"><div style=\"display: flex;\">"
+        output_data += f"\n    <div class=\"mw-collapsible mw-collapsed\" id=\"mw-customcollapsible-togglebox-{item}\">\n"
+        output_data += "    Effective chance calculations are based off of default loot settings, and median zombie density. The higher the density of zombies in an area, the higher the effective chance of an item spawning. Chance is also influenced by the [[lucky]] and [[unlucky]] traits."
+        output_data += "    <div class=\"toggle-content\">\n<div class=\"pz-container\">\n"
 
         item_files = {file_type: None for file_type in ['container', 'vehicle', 'foraging1', 'foraging2']}
         has_relevant_files = False  # Initialize the flag to check for relevant files
@@ -497,38 +507,91 @@ def formatting(unique_items, base_output_path):
         if not has_relevant_files:  # If no relevant files are found, skip to the next item
             continue
 
-        # Process container and vehicle files
-        for file_type in ['container', 'vehicle']:
-            if item_files[file_type]:
-                rows_to_add = []
-                with open(item_files[file_type], mode='r', newline='') as csvfile:
-                    reader = csv.reader(csvfile)
+        # Process container files
+        container_output = ''
+        if item_files['container']:
+            rows_to_add = []
+            with open(item_files['container'], mode='r', newline='') as csvfile:
+                reader = csv.reader(csvfile)
 
-                    for row in reader:
-                        if file_type == 'container':
-                            formatted_row = f"""    |-
+                for row in reader:
+                    effective_chance = f"{row[4]}%"
+                    formatted_row = f"""
+    |-
     | {row[0]}
     | {{{{ll|{row[1]}}}}}
-    | {row[2]}
-    | {row[3]}
-"""
-                        elif file_type == 'vehicle':
-                            formatted_row = f"""    |-
-    | {row[0]}
-    | {row[1]}
-    | {row[2]}
-"""
+    | {effective_chance}
+    """
+                    if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
                         rows_to_add.append(formatted_row)
 
-                if rows_to_add:
-                    table_caption = "{{ll|Containers}}" if file_type == 'container' else "{{ll|Vehicles}}"
-                    table_div = "<div style=\"float: left;\">\n"
-                    table_div += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
-                    table_div += f"    |+ {table_caption}\n"
-                    table_div += "    ! " + (
-                        "Building/Room\n    ! Container\n    ! Rolls\n    ! Chance\n" if file_type == 'container' else "Vehicle type/Location\n    ! Rolls\n    ! Chance\n")
-                    table_div += ''.join(rows_to_add) + "    |}\n</div>\n"
-                    output_data += table_div
+            if rows_to_add:
+                table_caption = "{{ll|Containers}}"
+                container_output += "<div id=\"containers\" style=\"flex-basis:50%\">\n"
+                container_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                container_output += f"    |+ {table_caption}\n"
+                container_output += "    ! Building/Room\n    ! Container\n    ! Effective chance\n"
+                container_output += ''.join(rows_to_add) + "|}\n</div>\n"
+
+        # Process vehicle files
+        vehicle_output = ''
+        if item_files['vehicle']:
+            rows_to_add = []
+            with open(item_files['vehicle'], mode='r', newline='') as csvfile:
+                reader = csv.reader(csvfile)
+
+                for row in reader:
+                    effective_chance = f"{row[3]}%"
+
+                    # Split the first column by capital letters
+                    type_parts = re.findall('[A-Z][^A-Z]*', row[0])
+
+                    # Handling "Mc Coy" case
+                    if type_parts[0] == "Mc" and len(type_parts) > 1:
+                        vehicle_type = type_parts[0] + type_parts[1]
+                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
+                    # Handling "Metal Welder" case
+                    elif ' '.join(type_parts[:2]) == "Metal Welder" and len(type_parts) > 2:
+                        vehicle_type = ' '.join(type_parts[:2])
+                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
+                    # Handling "Mas Gen Fac" case
+                    elif ' '.join(type_parts[:3]) == "Mass Gen Fac" and len(type_parts) > 3:
+                        vehicle_type = ' '.join(type_parts[:3])
+                        container = ' '.join(type_parts[3:])  # Join the remaining parts for the container
+                    # Handling "Construction Worker" case
+                    elif ' '.join(type_parts[:2]) == "Construction Worker" and len(type_parts) > 2:
+                        vehicle_type = ' '.join(type_parts[:2])
+                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
+                    # Handling "Glove" or "Glove box" case
+                    elif type_parts[0] == "Glove" or ' '.join(type_parts[:2]) == "Glove box":
+                        vehicle_type = "All"
+                        container = ' '.join(type_parts)  # Join all parts for the container
+                    # Handling "Trunk" case
+                    elif type_parts[0] == "Trunk":
+                        vehicle_type = ' '.join(type_parts[1:])  # Join the remaining parts for the vehicle type
+                        container = type_parts[0]  # Set "Trunk" as the container
+                    else:
+                        vehicle_type = type_parts[0]
+                        container = ' '.join(type_parts[1:])  # Join the remaining parts for the container
+
+                    formatted_row = f"""
+        |-
+        | {vehicle_type}
+        | {{{{ll|{container}}}}}
+        | {effective_chance}
+        """
+                    if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
+                        rows_to_add.append(formatted_row)
+
+            if rows_to_add:
+                table_caption = "{{ll|Vehicles}}"
+                vehicle_output += "<div id=\"vehicles\" style=\"flex-basis:50%\">\n"
+                vehicle_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                vehicle_output += f"    |+ {table_caption}\n"
+                vehicle_output += "    ! Type\n    ! Container\n    ! Effective chance\n"
+                vehicle_output += ''.join(rows_to_add) + "|}\n</div>\n"
+
+        output_data += container_output + vehicle_output
 
         # Append closing div for the flex container
         output_data += "    </div><div style=\"clear: both;\"></div>\n"
@@ -539,7 +602,7 @@ def formatting(unique_items, base_output_path):
                 rows_to_add = []
                 with open(item_files[file_type], mode='r', newline='') as csvfile:
                     reader = csv.reader(csvfile)
-                    header = next(reader)  # Skip the header row
+                    next(reader)  # Skip the header row
 
                     for row in reader:
                         row = [x.strip() if x else '-' for x in row]
@@ -549,32 +612,33 @@ def formatting(unique_items, base_output_path):
                             bonus_months = "<br>".join([month_lookup(x) for x in row[8].split('|') if x])
                             malus_months = "<br>".join([month_lookup(x) for x in row[9].split('|') if x])
                             formatted_row = f"""    |-
-    | {row[0]}-{row[1]}
-    | {row[2]}
-    | {zones}
-    | {row[3]}
-    | {row[4]}
-    | {row[5]}
-    | {row[6]}
-    | {months}
-    | {bonus_months}
-    | {malus_months}
-"""
+            | {row[0]}-{row[1]}
+            | {row[2]}
+            | {zones}
+            | {row[3]}
+            | {row[4]}
+            | {row[5]}
+            | {row[6]}
+            | {months}
+            | {bonus_months}
+            | {malus_months}
+        """
                         elif file_type == 'foraging2':
                             chance_info = f"all with {row[0]} chance"
                             formatted_row = f"""    |-
-    | 1
-    | 0
-    | {chance_info}
-    | -
-    | -
-    | -
-    | -
-    | all
-    | -
-    | -
-"""
-                        rows_to_add.append(formatted_row)
+            | 1
+            | 0
+            | {chance_info}
+            | -
+            | -
+            | -
+            | -
+            | all
+            | -
+            | -
+        """
+                        if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
+                            rows_to_add.append(formatted_row)
 
                 if rows_to_add:
                     foraging_table = f"    {{| class=\"wikitable theme-red\" style=\"width: 98%;\"\n"
@@ -590,8 +654,12 @@ def formatting(unique_items, base_output_path):
         # Add the closing bot flag
         output_data += f"<!--END BOT FLAG|{item}|{version}-->"
 
+        # Remove completely empty lines
+        output_data_lines = output_data.split('\n')
+        output_data = '\n'.join(line for line in output_data_lines if line.strip())
+
         # Write the formatted data to a file if there's any data to write
-        if output_data:
+        if output_data.strip():  # Check if the output_data is not completely empty
             with open(os.path.join(complete_output_path, f'{item}.txt'), 'w') as output_file:
                 output_file.write(output_data)
 
