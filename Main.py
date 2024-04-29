@@ -477,10 +477,10 @@ def formatting(unique_items, base_output_path):
 
     # Process each unique item with a progress bar
     for item in tqdm(unique_items, desc="Formatting items"):
-        output_data = f"<!--BOT FLAG|{item}|{version}-->\n{{{{clear}}}}\n"
+        output_data = f"<!--BOT FLAG|{item}|{version}-->\n{{{{Clear}}}}\n"
         output_data += "<div class=\"togglebox theme-red\">\n"
         output_data += f"    <div>{item} distribution\n"
-        output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float:right; padding-right:30px; padding-top:4px; font-size:0.7em; font-weight:normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
+        output_data += f"        <span class=\"mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}} / {{{{int:hide}}}}\" style=\"float: right; padding-right: 30px; padding-top: 4px; font-size: 0.7em; font-weight: normal;\">{{{{int:show}}}} / {{{{int:hide}}}}</span></div>\n"
         output_data += f"    <div class=\"mw-collapsible mw-collapsed\" id=\"mw-customcollapsible-togglebox-{item}\">\n"
         output_data += "    <div class=\"toggle-content\"><div style=\"display: flex;\">"
 
@@ -522,16 +522,16 @@ def formatting(unique_items, base_output_path):
 
                 if rows_to_add:
                     table_caption = "{{ll|Containers}}" if file_type == 'container' else "{{ll|Vehicles}}"
-                    table_div = "<div style=\"float:left;\">\n"
-                    table_div += f"    {{| class=\"wikitable theme-red\" style=\"margin-right:15px; width:95%;\"\n"
+                    table_div = "<div style=\"float: left;\">\n"
+                    table_div += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
                     table_div += f"    |+ {table_caption}\n"
                     table_div += "    ! " + (
-                        "Building / Room\n    ! Container\n    ! Rolls\n    ! Chance\n" if file_type == 'container' else "Vehicle Type/Location\n    ! Rolls\n    ! Chance\n")
+                        "Building/Room\n    ! Container\n    ! Rolls\n    ! Chance\n" if file_type == 'container' else "Vehicle type/Location\n    ! Rolls\n    ! Chance\n")
                     table_div += ''.join(rows_to_add) + "    |}\n</div>\n"
                     output_data += table_div
 
         # Append closing div for the flex container
-        output_data += "    </div><div style=\"clear:both;\"></div>\n"
+        output_data += "    </div><div style=\"clear: both;\"></div>\n"
 
         # Process foraging files
         for file_type in ['foraging1', 'foraging2']:
@@ -577,9 +577,9 @@ def formatting(unique_items, base_output_path):
                         rows_to_add.append(formatted_row)
 
                 if rows_to_add:
-                    foraging_table = f"    {{| class=\"wikitable theme-red\" style=\"width:98%;\"\n"
+                    foraging_table = f"    {{| class=\"wikitable theme-red\" style=\"width: 98%;\"\n"
                     foraging_table += "    |+ {{ll|Foraging}}\n"
-                    foraging_table += "    ! rowspan=\"2\" | Amount\n    ! rowspan=\"2\" | Skill level\n    ! rowspan=\"2\" | Biomes\n    ! colspan=\"4\" style=\"text-align:center;\" | Weather modifiers\n    ! colspan=\"3\" style=\"text-align:center;\" | Month modifiers\n    |-\n"
+                    foraging_table += "    ! rowspan=\"2\" | Amount\n    ! rowspan=\"2\" | Skill level\n    ! rowspan=\"2\" | Biomes\n    ! colspan=\"4\" style=\"text-align: center;\" | Weather modifiers\n    ! colspan=\"3\" style=\"text-align: center;\" | Month modifiers\n    |-\n"
                     foraging_table += "    ! Snow\n    ! Rain\n    ! Day\n    ! Night\n    ! Months available\n    ! Bonus months\n    ! Malus months\n"
                     foraging_table += ''.join(rows_to_add) + "    |}\n"
                     output_data += foraging_table
