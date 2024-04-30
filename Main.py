@@ -15,10 +15,9 @@ def main():
 
     # Extract unique items
     unique_items = unique_items_extract(resources_path, file_names, forage_file_name)
+    unique_items = sorted(unique_items)
     write_unique_names(unique_items, output_path)
     item_processing(unique_items, resources_path, csv_output_path, file_names)
-
-    # Formatting CSVs into specific structured output
     formatting(unique_items, output_path)
 
 
@@ -98,10 +97,7 @@ def item_processing_container(item, resources_path):
     procedural_data = os.path.join(resources_path, 'proceduraldistributions.lua')
     distribution_data = os.path.join(resources_path, 'distributions.lua')
 
-    processed_entries = set()
-    blacklist = set()
-
-    match_count = 0
+    processed_entries = []
 
     with open(procedural_data, 'r') as file:
         proc_lines = file.readlines()
@@ -109,72 +105,68 @@ def item_processing_container(item, resources_path):
         dist_lines = file.readlines()
 
     item_value_pattern = re.compile(r'(?:[."]){}"\s*,\s*([0-9]+(?:\.[0-9]+)?)'.format(re.escape(item)), re.IGNORECASE)
-    quantity_pattern = re.compile(r'\d+(?:\.\d+)?')
     id_pattern = re.compile(r'^\s{4}(\w+)\s')
     container_pattern_primary = re.compile(r'^\s{8}(\w+)\s')
     container_pattern_fallback = re.compile(r'^\s{4}(\w+)\s')
+    ignore_line_pattern = re.compile(r'(items|junk|rolls)', re.IGNORECASE)
+    room_pattern = re.compile(r'^\s{4}(\w+)\s')
+    rolls_pattern = re.compile(r'rolls\s*=\s*(\d+)', re.IGNORECASE)
 
     for index, line in enumerate(proc_lines):
-        room, container = None, None
         if item_value_pattern.search(line):
-            match_count += 1
             value_match = item_value_pattern.search(line)
-            if not value_match:
-                continue
+            quantity = float(value_match.group(1))
 
-            value_string = value_match.group(1)
-            quantity_match = quantity_pattern.search(value_string)
-            if not quantity_match:
-                continue
-
-            quantity = float(quantity_match.group())
             proc_id = None
-            for j in range(index - 1, -1, -1):
+            rolls = None
+            checked_lines = []
+
+            # Find proc_id
+            for j in range(index, -1, -1):
                 id_match = id_pattern.match(proc_lines[j])
                 if id_match:
                     proc_id = id_match.group(1)
                     break
 
+            # Find rolls starting from the line where the item ID was found
+            for j in range(index, -1, -1):
+                rolls_match = rolls_pattern.search(proc_lines[j])
+                checked_lines.append(proc_lines[j].strip())  # Collect checked lines for debug
+                if rolls_match:
+                    rolls = int(rolls_match.group(1))
+                    break
+
             if not proc_id:
                 continue
 
-            rolls_value = None
-            for j in range(index - 1, -1, -1):
-                if 'rolls' in proc_lines[j]:
-                    rolls_match = re.search(r'rolls\s*=\s*(\d+)', proc_lines[j])
-                    if rolls_match:
-                        rolls_value = rolls_match.group(1)
-                        break
-
-            if not rolls_value:
-                continue
-
             search_id_pattern = re.compile(r'"{}"'.format(re.escape(proc_id)), re.IGNORECASE)
-            room_pattern = re.compile(r'^\s{4}(\w+)\s')
 
-            match_found = False
             for k, dist_line in enumerate(dist_lines):
                 if search_id_pattern.search(dist_line):
-                    for m in range(k-1, -1, -1):
-                        if not room and room_pattern.match(dist_lines[m]):
-                            room = room_pattern.match(dist_lines[m]).group(1).strip()
-                        if not container and container_pattern_primary.match(dist_lines[m]):
-                            container = container_pattern_primary.match(dist_lines[m]).group(1).strip()
-                        if room and container:
-                            processed_entries.add((room, container, rolls_value, quantity))
-                            match_found = True
-                            break
-                        if room and not container:
-                            if container_pattern_fallback.match(dist_lines[m]):
-                                container = container_pattern_fallback.match(dist_lines[m]).group(1).strip()
-                                processed_entries.add((room, container, rolls_value, quantity))
-                                match_found = True
+                    # Search for container
+                    container = None
+                    for back_index in range(k - 1, -1, -1):
+                        if not ignore_line_pattern.search(dist_lines[back_index]):
+                            if container_pattern_primary.match(dist_lines[back_index]):
+                                container = container_pattern_primary.match(dist_lines[back_index]).group(1).strip()
+                                break
+                            elif container_pattern_fallback.match(dist_lines[back_index]):
+                                container = container_pattern_fallback.match(dist_lines[back_index]).group(1).strip()
                                 break
 
-            if not match_found:
-                container = proc_id
-                room = "Not referenced"
-                processed_entries.add((room, container, rolls_value, quantity))
+                    # Search for room
+                    room = None
+                    for back_index in range(k - 1, -1, -1):
+                        if room_pattern.match(dist_lines[back_index]):
+                            room = room_pattern.match(dist_lines[back_index]).group(1).strip()
+                            break
+
+                    if rolls is None or rolls == 0:
+                        print(f"Debug: No valid rolls found for Item '{item}' - Proc ID: {proc_id}. Checked lines: {checked_lines}")
+
+                    # Add entry to processed entries if all components are found
+                    if room and container and rolls:
+                        processed_entries.append((room, container, rolls, quantity))
 
     return processed_entries
 
@@ -185,46 +177,45 @@ def process_distribution_items(item, resources_path, processed_entries):
     with open(distribution_data, 'r') as file:
         lines = file.readlines()
 
-    item_value_pattern = re.compile(r'(?:[."]){}"\s*,\s*([0-9]+(?:\.[0-9]+)?)'.format(re.escape(item)), re.IGNORECASE)
-    quantity_pattern = re.compile(r'\d+(?:\.\d+)?')
+    item_pattern = re.compile(r'(?:[."])({})"\s*,\s*\d+'.format(re.escape(item)), re.IGNORECASE)
+    quantity_pattern = re.compile(r'([0-9]+(?:\.[0-9]+)?)')
+    room_pattern = re.compile(r'^\s{4}(\w+)\s')
 
-    blacklist = set()
+    matches = []  # List to store item matches
 
-    for line in lines:
-        if line in blacklist:
-            continue
+    for line_number, line in enumerate(lines, start=1):
+        item_match = item_pattern.search(line)
+        if item_match:
+            matches.append((item_match.group(1), line, line_number))
 
-        value_match = item_value_pattern.search(line)
+    debug_processed = []  # List to store debug messages for processed matches
+    for match_index, (matched_item, line, line_number) in enumerate(matches, start=1):
 
-        if value_match:
-            value_string = value_match.group(1)
-            quantity_match = quantity_pattern.search(value_string)
-            if quantity_match:
-                quantity = float(quantity_match.group())
-                room, container, rolls_value = None, None, None
-                for j in range(lines.index(line) - 1, -1, -1):
-                    if not container and 'rolls' in lines[j]:
-                        rolls_match = re.search(r'rolls\s*=\s*(\d+)', lines[j])
-                        if rolls_match:
-                            rolls_value = rolls_match.group(1)
-                            container_match = re.match(r'^\s*(\w+)\s*=\s*\{', lines[j - 1])
-                            if container_match:
-                                container = container_match.group(1).strip()
-                                bracket_count = 0
-                                for k in range(j - 1, -1, -1):
-                                    bracket_count += lines[k].count('{') - lines[k].count('}')
-                                    if bracket_count == 0:
-                                        room = "all"
-                                        break
-                                if bracket_count > 0:
-                                    for k in range(j - 2, -1, -1):
-                                        room_match = re.match(r'^\s{4}(\w+)\s', lines[k])
-                                        if room_match:
-                                            room = room_match.group(1).strip()
-                                            break
-                                processed_entries.add((room, container, rolls_value, quantity))
-                                break
-            blacklist.add(line)
+        quantity_match = quantity_pattern.search(line)
+        if quantity_match:
+            quantity = float(quantity_match.group(1))
+            room, container, rolls_value = None, None, None
+
+            # Check previous lines for room information
+            for prev_line_number in range(line_number - 1, 0, -1):
+                prev_line = lines[prev_line_number - 1]
+                room_match = room_pattern.match(prev_line)
+                if room_match:
+                    room = room_match.group(1).strip()
+                    break
+
+            for j in range(line_number - 1, -1, -1):
+                if not container and 'rolls' in lines[j]:
+                    rolls_match = re.search(r'rolls\s*=\s*(\d+)', lines[j])
+                    if rolls_match:
+                        rolls_value = rolls_match.group(1)
+                        container_match = re.match(r'^\s*(\w+)\s*=\s*\{', lines[j - 1])
+                        if container_match:
+                            container = container_match.group(1).strip()
+                            entry = (room or "all", container, rolls_value, quantity)
+                            if entry not in processed_entries:
+                                processed_entries.append(entry)
+
 
     return processed_entries
 
@@ -233,17 +224,20 @@ def write_container_csv(item, output_path, processed_entries):
     if processed_entries:
         csv_file_path = os.path.join(output_path, f'{item}_container.csv')
         os.makedirs(os.path.dirname(csv_file_path), exist_ok=True)
+        unique_entries = set()  # Set to store unique entries
         with open(csv_file_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             for entry in sorted(processed_entries):
-                entry_list = list(entry)
-                rolls = float(entry_list[2])
-                chance = float(entry_list[3])
-                effective_chance = (1 + ((100 * chance * 0.6) + (10 * 4))) / 10000
-                final_chance = round((1 - (1 - effective_chance) ** rolls) * 100, 2)
-                entry_list.append(final_chance)
-                # Write the modified list back to the CSV
-                writer.writerow(entry_list)
+                if entry not in unique_entries:  # Check if entry is unique
+                    unique_entries.add(entry)  # Add entry to set of unique entries
+                    entry_list = list(entry)
+                    rolls = float(entry_list[2])
+                    chance = float(entry_list[3])
+                    effective_chance = (1 + ((100 * chance * 0.6) + (10 * 4))) / 10000
+                    final_chance = round((1 - (1 - effective_chance) ** rolls) * 100, 2)
+                    entry_list.append(final_chance)
+                    # Write the modified list back to the CSV
+                    writer.writerow(entry_list)
 
 
 def item_processing_vehicle(item, resources_path, output_path):
