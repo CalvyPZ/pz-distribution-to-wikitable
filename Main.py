@@ -18,6 +18,7 @@ def main():
     unique_items = sorted(unique_items)
     write_unique_names(unique_items, output_path)
     item_processing(unique_items, resources_path, csv_output_path, file_names)
+    attached_weapon_processing(resources_path, output_path)
     formatting(unique_items, output_path)
 
 
@@ -177,8 +178,9 @@ def process_distribution_items(item, resources_path, processed_entries):
     with open(distribution_data, 'r') as file:
         lines = file.readlines()
 
-    item_pattern = re.compile(r'(?:[."])({})"\s*,\s*\d+'.format(re.escape(item)), re.IGNORECASE)
-    quantity_pattern = re.compile(r'([0-9]+(?:\.[0-9]+)?)')
+    # Update item_pattern to correctly format and match item names followed by a comma and a number
+    item_pattern = re.compile(r'"{}"\s*,\s*([0-9]+)'.format(re.escape(item)), re.IGNORECASE)
+    quantity_pattern = re.compile(r'(?<=,)\s*([0-9]+(?:\.[0-9]+)?)\s*,')  # Matches the number immediately after the first comma
     room_pattern = re.compile(r'^\s{4}(\w+)\s')
 
     matches = []  # List to store item matches
@@ -215,7 +217,6 @@ def process_distribution_items(item, resources_path, processed_entries):
                             entry = (room or "all", container, rolls_value, quantity)
                             if entry not in processed_entries:
                                 processed_entries.append(entry)
-
 
     return processed_entries
 
@@ -282,6 +283,9 @@ def item_processing_vehicle(item, resources_path, output_path):
                 entry_list.append(final_chance)
                 # Write the modified list back to the CSV
                 writer.writerow(entry_list)
+
+
+
 
 
 def clean_foraging_file(resources_path):
@@ -458,6 +462,60 @@ def extract_data_from_block(block_content):
     return block_data
 
 
+def attached_weapon_processing(resources_path, output_path):
+    output_dir = os.path.join(output_path, 'csv')
+    os.makedirs(output_dir, exist_ok=True)
+
+    file_path = os.path.join(resources_path, 'AttachedWeaponDefinitions.lua')
+    with open(file_path, 'r') as file:
+        content = file.readlines()
+
+    # Remove comments indicated by '--'
+    content = [re.sub(r'--.*$', '', line) for line in content]
+    content = ''.join(content)
+
+    definition_blocks = content.split('AttachedWeaponDefinitions.')
+    item_regex = re.compile(r'(\w+)\s*=\s*\{')
+    chance_regex = re.compile(r'chance\s*=\s*(\d+)', re.IGNORECASE)
+    outfit_regex = re.compile(r'outfit\s*=\s*\{\s*"([^}]+)"\s*\}', re.IGNORECASE)
+    day_regex = re.compile(r'daySurvived\s*=\s*(\d+)', re.IGNORECASE)
+    weapon_regex = re.compile(r'weapons\s*=\s*\{\s*([^}]+)\}', re.IGNORECASE)
+
+    for index, block in enumerate(definition_blocks[1:], start=1):  # Start index at 1 since we skip the first split part
+        item_match = item_regex.search(block)
+        if item_match:
+            item_name = item_match.group(1)
+
+            chance_match = chance_regex.search(block)
+            chance = chance_match.group(1) if chance_match else "Unknown"
+
+            outfit_match = outfit_regex.search(block)
+            if outfit_match:
+                outfit = outfit_match.group(1).replace('"', '').replace(' ', '').replace(',', '|')
+            else:
+                outfit = "All"
+
+            day_match = day_regex.search(block)
+            days_survived = day_match.group(1) if day_match else "Unknown"
+
+            weapon_match = weapon_regex.search(block)
+            weapons = []
+            if weapon_match:
+                raw_weapons = weapon_match.group(1).split(',')
+                for weapon_raw in raw_weapons:
+                    weapon_clean = weapon_raw.strip().split('.')[-1].replace('"', '')
+                    weapons.append(weapon_clean)
+
+            for weapon in weapons:
+                csv_file_path = os.path.join(output_dir, f'{weapon}_zombie.csv')
+                file_exists = os.path.exists(csv_file_path)
+                with open(csv_file_path, 'a', newline='') as csvfile:  # Append mode
+                    writer = csv.writer(csvfile)
+                    if not file_exists:
+                        writer.writerow(['Chance', 'Outfit', 'Days Survived'])  # Header for new file
+                    writer.writerow([chance, outfit, days_survived])
+
+
 def month_lookup(month_number):
     month_dict = {
         '1': 'January', '2': 'February', '3': 'March',
@@ -488,7 +546,7 @@ def formatting(unique_items, base_output_path):
         output_data += "    Effective chance calculations are based off of default loot settings, and median zombie density. The higher the density of zombies in an area, the higher the effective chance of an item spawning. Chance is also influenced by the [[lucky]] and [[unlucky]] traits."
         output_data += "    <div class=\"toggle-content\">\n<div class=\"pz-container\">\n"
 
-        item_files = {file_type: None for file_type in ['container', 'vehicle', 'foraging1', 'foraging2']}
+        item_files = {file_type: None for file_type in ['container', 'vehicle', 'foraging1', 'foraging2', 'zombie']}
         has_relevant_files = False  # Initialize the flag to check for relevant files
 
         # Search for files that include the item name
@@ -516,16 +574,17 @@ def formatting(unique_items, base_output_path):
     | {{{{ll|{row[1]}}}}}
     | {effective_chance}
     """
-                    if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
+                    if any(cell.strip() for cell in row):
                         rows_to_add.append(formatted_row)
 
             if rows_to_add:
                 table_caption = "{{ll|Containers}}"
-                container_output += "<div id=\"containers\" style=\"flex-basis:50%\">\n"
+                container_output += "<div id=\"containers\" style=\"flex-basis:30%\">\n"
                 container_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
                 container_output += f"    |+ {table_caption}\n"
                 container_output += "    ! Building/Room\n    ! Container\n    ! Effective chance\n"
                 container_output += ''.join(rows_to_add) + "|}\n</div>\n"
+            output_data += container_output
 
         # Process vehicle files
         vehicle_output = ''
@@ -536,64 +595,85 @@ def formatting(unique_items, base_output_path):
 
                 for row in reader:
                     effective_chance = f"{row[3]}%"
-
-                    # Split the first column by capital letters
                     type_parts = re.findall('[A-Z][^A-Z]*', row[0])
 
-                    # Handling "Mc Coy" case
                     if type_parts[0] == "Mc" and len(type_parts) > 1:
                         vehicle_type = type_parts[0] + type_parts[1]
-                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
-                    # Handling "Metal Welder" case
+                        container = ' '.join(type_parts[2:])
                     elif ' '.join(type_parts[:2]) == "Metal Welder" and len(type_parts) > 2:
                         vehicle_type = ' '.join(type_parts[:2])
-                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
-                    # Handling "Mas Gen Fac" case
+                        container = ' '.join(type_parts[2:])
                     elif ' '.join(type_parts[:3]) == "Mass Gen Fac" and len(type_parts) > 3:
                         vehicle_type = ' '.join(type_parts[:3])
-                        container = ' '.join(type_parts[3:])  # Join the remaining parts for the container
-                    # Handling "Construction Worker" case
+                        container = ' '.join(type_parts[3:])
                     elif ' '.join(type_parts[:2]) == "Construction Worker" and len(type_parts) > 2:
                         vehicle_type = ' '.join(type_parts[:2])
-                        container = ' '.join(type_parts[2:])  # Join the remaining parts for the container
-                    # Handling "Glove" or "Glove box" case
+                        container = ' '.join(type_parts[2:])
                     elif type_parts[0] == "Glove" or ' '.join(type_parts[:2]) == "Glove box":
                         vehicle_type = "All"
-                        container = ' '.join(type_parts)  # Join all parts for the container
-                    # Handling "Trunk" case
+                        container = ' '.join(type_parts)
                     elif type_parts[0] == "Trunk":
-                        vehicle_type = ' '.join(type_parts[1:])  # Join the remaining parts for the vehicle type
-                        container = type_parts[0]  # Set "Trunk" as the container
+                        vehicle_type = ' '.join(type_parts[1:])
+                        container = type_parts[0]
                     else:
                         vehicle_type = type_parts[0]
-                        container = ' '.join(type_parts[1:])  # Join the remaining parts for the container
+                        container = ' '.join(type_parts[1:])
 
                     formatted_row = f"""
-        |-
-        | {vehicle_type}
-        | {{{{ll|{container}}}}}
-        | {effective_chance}
-        """
-                    if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
+    |-
+    | {vehicle_type}
+    | {{{{ll|{container}}}}}
+    | {effective_chance}
+    """
+                    if any(cell.strip() for cell in row):
                         rows_to_add.append(formatted_row)
 
             if rows_to_add:
                 table_caption = "{{ll|Vehicles}}"
-                vehicle_output += "<div id=\"vehicles\" style=\"flex-basis:50%\">\n"
+                vehicle_output += "<div id=\"vehicles\" style=\"flex-basis:30%\">\n"
                 vehicle_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
                 vehicle_output += f"    |+ {table_caption}\n"
                 vehicle_output += "    ! Type\n    ! Container\n    ! Effective chance\n"
                 vehicle_output += ''.join(rows_to_add) + "|}\n</div>\n"
+            output_data += vehicle_output
 
-        output_data += container_output + vehicle_output
+            # Process zombie files
+            zombie_output = ''
+            unique_rows = set()
+            if item_files['zombie']:
+                with open(item_files['zombie'], mode='r', newline='') as csvfile:
+                    reader = csv.reader(csvfile)
+                    next(reader)
+                    for row in reader:
+                        if any(cell.strip() for cell in row):
+                            outfit = row[1].replace('|', '<br>')
+                            days = row[2]
+                            chance = row[0]
+                            formatted_row = f"""
+        |-
+        | {outfit}
+        | {days}
+        | {chance}
+        """
+                            unique_rows.add(formatted_row)
 
-        # Append closing div for the flex container
-        output_data += "    </div><div style=\"clear: both;\"></div>\n"
+                if unique_rows:
+                    table_caption = "{{ll|Zombies}}"
+                    zombie_output += "<div id=\"zombies\" style=\"flex-basis:30%\">\n"
+                    zombie_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                    zombie_output += f"    |+ {table_caption}\n"
+                    zombie_output += "    ! Outfit\n    ! Days survived\n    ! Chance\n"
+                    zombie_output += ''.join(unique_rows) + "|}\n</div>\n"
+
+            output_data += zombie_output
 
         # Process foraging files
+        foraging_exists = False
+        foraging_table = ''
         for file_type in ['foraging1', 'foraging2']:
             if item_files[file_type]:
                 rows_to_add = []
+                foraging_exists = True
                 with open(item_files[file_type], mode='r', newline='') as csvfile:
                     reader = csv.reader(csvfile)
                     next(reader)  # Skip the header row
@@ -606,32 +686,32 @@ def formatting(unique_items, base_output_path):
                             bonus_months = "<br>".join([month_lookup(x) for x in row[8].split('|') if x])
                             malus_months = "<br>".join([month_lookup(x) for x in row[9].split('|') if x])
                             formatted_row = f"""    |-
-            | {row[0]}-{row[1]}
-            | {row[2]}
-            | {zones}
-            | {row[3]}
-            | {row[4]}
-            | {row[5]}
-            | {row[6]}
-            | {months}
-            | {bonus_months}
-            | {malus_months}
-        """
+    | {row[0]}-{row[1]}
+    | {row[2]}
+    | {zones}
+    | {row[3]}
+    | {row[4]}
+    | {row[5]}
+    | {row[6]}
+    | {months}
+    | {bonus_months}
+    | {malus_months}
+    """
                         elif file_type == 'foraging2':
                             chance_info = f"all with {row[0]} chance"
                             formatted_row = f"""    |-
-            | 1
-            | 0
-            | {chance_info}
-            | -
-            | -
-            | -
-            | -
-            | all
-            | -
-            | -
-        """
-                        if any(cell.strip() for cell in row):  # Check if any cell in the row is not empty
+    | 1
+    | 0
+    | {chance_info}
+    | -
+    | -
+    | -
+    | -
+    | all
+    | -
+    | -
+    """
+                        if any(cell.strip() for cell in row):
                             rows_to_add.append(formatted_row)
 
                 if rows_to_add:
@@ -639,20 +719,20 @@ def formatting(unique_items, base_output_path):
                     foraging_table += "    |+ {{ll|Foraging}}\n"
                     foraging_table += "    ! rowspan=\"2\" | Amount\n    ! rowspan=\"2\" | Skill level\n    ! rowspan=\"2\" | Biomes\n    ! colspan=\"4\" style=\"text-align: center;\" | Weather modifiers\n    ! colspan=\"3\" style=\"text-align: center;\" | Month modifiers\n    |-\n"
                     foraging_table += "    ! Snow\n    ! Rain\n    ! Day\n    ! Night\n    ! Months available\n    ! Bonus months\n    ! Malus months\n"
-                    foraging_table += ''.join(rows_to_add) + "    |}\n"
-                    output_data += foraging_table
+                    foraging_table += ''.join(rows_to_add)
+                    foraging_table += f"|}}\n"
 
-        # Append closing divs for the toggle content and box
-        output_data += f"    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}}/{{{{int:hide}}}}\"></div></div>\n"
 
-        # Add the closing bot flag
+        if foraging_exists:
+            output_data += f"\n    </div><div style=\"clear: both;\"></div>\n" + foraging_table + f"    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}}/{{{{int:hide}}}}\"></div></div>\n"
+        else:
+            output_data += f"\n    </div><div style=\"clear: both;\"></div>\n    </div></div><div class=\"toggle large mw-customtoggle-togglebox-{item}\" title=\"{{{{int:show}}}}/{{{{int:hide}}}}\"></div></div>\n"
         output_data += f"<!--END BOT FLAG|{item}|{version}-->"
 
         # Remove completely empty lines
         output_data_lines = output_data.split('\n')
         output_data = '\n'.join(line for line in output_data_lines if line.strip())
 
-        # Write the formatted data to a file if there's any data to write
         if output_data.strip():  # Check if the output_data is not completely empty
             with open(os.path.join(complete_output_path, f'{item}.txt'), 'w') as output_file:
                 output_file.write(output_data)
