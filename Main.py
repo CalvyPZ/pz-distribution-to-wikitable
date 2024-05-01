@@ -579,8 +579,8 @@ def formatting(unique_items, base_output_path):
 
             if rows_to_add:
                 table_caption = "{{ll|Containers}}"
-                container_output += "<div id=\"containers\" style=\"flex-basis:30%\">\n"
-                container_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                container_output += "<div id=\"containers\" style=\"flex-basis: 30%;\">\n"
+                container_output += f"    {{| class=\"wikitable theme-red sortable\" style=\"margin-right: 15px; width: 95%;\"\n"
                 container_output += f"    |+ {table_caption}\n"
                 container_output += "    ! Building/Room\n    ! Container\n    ! Effective chance\n"
                 container_output += ''.join(rows_to_add) + "|}\n</div>\n"
@@ -631,7 +631,7 @@ def formatting(unique_items, base_output_path):
             if rows_to_add:
                 table_caption = "{{ll|Vehicles}}"
                 vehicle_output += "<div id=\"vehicles\" style=\"flex-basis:30%\">\n"
-                vehicle_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                vehicle_output += f"    {{| class=\"wikitable theme-red sortable\" style=\"margin-right: 15px; width: 95%;\"\n"
                 vehicle_output += f"    |+ {table_caption}\n"
                 vehicle_output += "    ! Type\n    ! Container\n    ! Effective chance\n"
                 vehicle_output += ''.join(rows_to_add) + "|}\n</div>\n"
@@ -660,7 +660,7 @@ def formatting(unique_items, base_output_path):
                 if unique_rows:
                     table_caption = "{{ll|Zombies}}"
                     zombie_output += "<div id=\"zombies\" style=\"flex-basis:30%\">\n"
-                    zombie_output += f"    {{| class=\"wikitable theme-red\" style=\"margin-right: 15px; width: 95%;\"\n"
+                    zombie_output += f"    {{| class=\"wikitable theme-red sortable\" style=\"margin-right: 15px; width: 95%;\"\n"
                     zombie_output += f"    |+ {table_caption}\n"
                     zombie_output += "    ! Outfit\n    ! Days survived\n    ! Chance\n"
                     zombie_output += ''.join(unique_rows) + "|}\n</div>\n"
@@ -715,7 +715,7 @@ def formatting(unique_items, base_output_path):
                             rows_to_add.append(formatted_row)
 
                 if rows_to_add:
-                    foraging_table = f"    {{| class=\"wikitable theme-red\" style=\"width: 98%;\"\n"
+                    foraging_table = f"    {{| class=\"wikitable theme-red sortable\" style=\"width: 98%;\"\n"
                     foraging_table += "    |+ {{ll|Foraging}}\n"
                     foraging_table += "    ! rowspan=\"2\" | Amount\n    ! rowspan=\"2\" | Skill level\n    ! rowspan=\"2\" | Biomes\n    ! colspan=\"4\" style=\"text-align: center;\" | Weather modifiers\n    ! colspan=\"3\" style=\"text-align: center;\" | Month modifiers\n    |-\n"
                     foraging_table += "    ! Snow\n    ! Rain\n    ! Day\n    ! Night\n    ! Months available\n    ! Bonus months\n    ! Malus months\n"
